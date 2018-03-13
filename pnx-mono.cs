@@ -139,7 +139,9 @@ namespace pnxmono
         public static TcpListener tcpListener;
         public static Thread TCPListenThread;
         public static long radioID = 0;
+        public static long radioID2 = 0;
         public static int tgID = 0;
+        public static int tgID2 = 0;
         public static myState thisState = new myState();
         public static int mJoined = 0;
         public static object locker = new object();
@@ -168,7 +170,7 @@ namespace pnxmono
         public static int defaultTalkGroup = 0;
         public static int lastTalkGroup = 0;
         public static int currentTalkGroup = 0;
-      //  public static byte[] buffer;
+        //  public static byte[] buffer;
         public static int systemEnv = 0;  // 0 = unix, 1 = windows
         public static bool messageReceived = false;
         public static UdpState uState = new UdpState();
@@ -224,15 +226,15 @@ namespace pnxmono
                 var configs = db.GetCollection<ConfigData>("config");
                     var myData = new ConfigData
                     {
-                        defaultTG = "10100",
-                        defaultTimeout = 60,
+                        defaultTG = "10282",
+                        defaultTimeout = 10,
                         useCT = true,
                         useLocalCT = true,
                         useVoicePrompts = true
                     };
                
-                defTalkgroup = "10100";
-                defTimeout = 60;
+                defTalkgroup = "10282";
+                defTimeout = 10;
                 useCT = true;
                 useVoicePrompts = true;
                 configs.Insert(myData);
@@ -269,6 +271,7 @@ namespace pnxmono
         private static void ListenForTCP()
         {
             TCPThreadFlag = 1; // allow tcp thread to run
+            Console.WriteLine("TalkGroup..." + defTalkgroup + " ");
             Console.WriteLine("Listening...");
             tcpListener.Start();
             while (TCPThreadFlag == 1)
@@ -384,7 +387,7 @@ namespace pnxmono
                                         if (tcpClient == connectedClients[i].clientID && connectedClients[i].stunID == 0)
                                         {
                                             connectedClients[i].stunID = messageStunID;
-                                            Console.WriteLine(connectTime.ToString() + " UTC :Connected to" + tcpClient.Client.RemoteEndPoint.ToString());
+                                            Console.WriteLine(connectTime.ToString() + " UTC :Connected to.." + tcpClient.Client.RemoteEndPoint.ToString());
                                             connectedClients[i].status = 1;
                                             soundDictionary._dict.TryGetValue("startup", out thisVal);
                                             if (useVoicePrompts) saysomething(thisVal);
@@ -406,9 +409,9 @@ namespace pnxmono
                                 {
                                     if (message[9] == 161) // affilate request
                                     {
-                                        //	int AffID = message[25] * 65536 + message[26] * 256 + message[27];
+                                        //int AffID = message[25] * 65536 + message[26] * 256 + message[27];
                                         //endoftransmissionTimer.Change(Timeout.Infinite, Timeout.Infinite); //disable timer
-                                        //	Console.WriteLine("Affiliate from " + AffID.ToString() + " From id " + messageStunID.ToString());
+                                        //Console.WriteLine("Affiliate from " + AffID.ToString() + " From id " + messageStunID.ToString());
                                     }
                                     else
                                     {
@@ -453,11 +456,10 @@ namespace pnxmono
                                             {
                                                 radioID = message[10] * 65536 + message[11] * 256 + message[12];
                                             }
-                                            if (tgID > 10099 && tgID < 19999) // only work with valid groups.
+                                            if (tgID > 10099 && tgID < 19999 && radioID > 1150000 && radioID < 1159999 || tgID >10099 && tgID < 19999 && radioID > 3150000 && radioID < 3159999 ) // only work with valid groups.
                                             {
                                                 if (stopwatch != null)
-                                                {
-                                                    //Console.WriteLine(stopwatch.ElapsedMilliseconds);
+                                                {  
                                                     if (message[9] > 97 && message[9] < 116)
                                                     {
                                                         myTimes.Add(new times(stopwatch.ElapsedMilliseconds, messageStunID));
@@ -481,6 +483,7 @@ namespace pnxmono
                                                     }
                                                     else
                                                     {
+                                                        Console.WriteLine(" RadioID ..." + radioID + "  ");
                                                         Console.WriteLine("device stun group received:" + messageStunID.ToString() + " Should be: " + thisState.stunGroup);
                                                         Console.WriteLine("Message:" + ByteArrayToString(message, bytesRead));
                                                     }
@@ -513,9 +516,11 @@ namespace pnxmono
                                                                     }
                                                                     if (keyDownFlag == 0)
                                                                     {
+                                                                        Console.WriteLine("                                ");
                                                                         Console.WriteLine("keydown from V24, STUN Id " + messageStunID.ToString());
                                                                         thisState.stunGroup = messageStunID;
                                                                         txStartTime = DateTime.UtcNow;
+                                                                        Console.WriteLine("Transmission initiated...  " + txStartTime + " UTC ");
                                                                         keyDownFlag = 1;
                                                                         stopwatch = Stopwatch.StartNew();
                                                                         endoftransmissionTimer.Change(800, 800);
@@ -600,7 +605,7 @@ namespace pnxmono
             // find the address of the adapter being using to get to the internet.
             UdpClient u = new UdpClient("8.8.8.8", 1);
             localAddr = ((IPEndPoint)u.Client.LocalEndPoint).Address;
-            Console.WriteLine(localAddr.ToString());
+            Console.WriteLine("Local IP address.." + localAddr.ToString());
             // convert talkgroup to a multicast address
             string mcastString = makeMulticastAddress(talkGroup);
             tgString = talkGroup.ToString();
@@ -639,7 +644,7 @@ namespace pnxmono
                 {
                     if ((message[14] == 0x04) && (message[23] == 0x9e))
                     {
-                        // Console.WriteLine("probably silence");
+                         Console.WriteLine("probably silence");
                     }
                 }
                 {
@@ -663,10 +668,11 @@ namespace pnxmono
                         }
                         if (keyDownFlag == 0)
                         {
-                            Console.WriteLine("Keydown from multicast ");
+                            Console.WriteLine("Transmitter Keydown from multicast ");
                             okToTalk = false; // we cant talk if someone else is...
                             txStartTime = DateTime.UtcNow;
                             keyDownFlag = 1;
+                            Console.WriteLine(" Start Time2 ... " + txStartTime + " UTC2 ");
                             stopwatch = Stopwatch.StartNew();
                             endoftransmissionTimer.Change(800, 800);
                         }
@@ -674,7 +680,7 @@ namespace pnxmono
                         message[7] = (byte)0xFD;
                         try
                         {
-                            //Console.WriteLine("sending to v24 port");
+                            // Console.WriteLine("sending to Quantar via v24 port");
                             // send to V24.
                             NetworkStream SocketStream = connectedClients[i].clientID.GetStream();
                             connectedClients[i].clientID.NoDelay = true;
@@ -736,7 +742,7 @@ public static void EOTCallback(object state)
                 Console.WriteLine("End of remote transmission");
                 endoftransmissionTimer.Change(-1, -1);
 
-                //Console.WriteLine("System State:" + systemState.ToString());
+                Console.WriteLine("System State:" + systemState.ToString());
                 if (systemState == state_sending)
                 {
                     if (announceNeeded == true)
@@ -761,9 +767,10 @@ public static void EOTCallback(object state)
 
                 if (keyDownFlag == 1)
                 {
-                    Console.WriteLine("Local Unkey");
-                    if (useLocalCT) saysomething(sounds.cTone);
+                    Console.WriteLine(" Local Unkey ");
+                    if (useLocalCT) saysomething(sounds.cTone1);
                     txEndTime = DateTime.UtcNow;
+                    Console.WriteLine("Transmission Terminated... " + txEndTime + " UTC ");
                     keyDownFlag = 0;
                     stopwatch = null;
                     // statistics collection
@@ -778,8 +785,11 @@ public static void EOTCallback(object state)
                     long avgTime = (timeSum / i);
                     if ((int)avgTime != 0)
                     {
-                        Console.WriteLine("Avg time was " + avgTime.ToString());
-                        Console.WriteLine("Longest delay was " + maxDelayTime.ToString());
+                        Console.WriteLine("User ID................ " + radioID + "  " );
+                        Console.WriteLine("TalkGroup ............. " + tgID + " ");
+                        Console.WriteLine("Air Time (Seconds)..... " + timeSum/1000 + " ");
+                        Console.WriteLine("Per Packet Avg time.... " + avgTime.ToString());
+                        Console.WriteLine("Longest System Delay... " + maxDelayTime.ToString());
                     }
                     myTimes.Clear();
                     maxDelayTime = 0;
